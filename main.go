@@ -4,9 +4,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
+	"github.com/kaungkhantcoder/go-fiber-postgres/models"
 	"github.com/kaungkhantcoder/go-fiber-postgres/storage"
 	"gorm.io/gorm"
 )
@@ -32,7 +34,7 @@ func (r *Repository) CreateBook(context *fiber.Ctx) error {
 		return err
 	}
 
-	err := r.DB.Create(&book).Error
+	err = r.DB.Create(&book).Error
 
 	if err != nil {
 		context.Status(http.StatusBadRequest).JSON(
@@ -42,6 +44,30 @@ func (r *Repository) CreateBook(context *fiber.Ctx) error {
 
 	context.Status(http.StatusOK).JSON(
 		&fiber.Map{"message": "book has beed added"})
+	return nil
+}
+
+func (r *Repository) DeleteBook(context *fiber.Ctx) error {
+	bookModel := models.Books{}
+	id := context.Params("id")
+	if id == ""{
+		context.Status(http.StatusInternalServerError).JSON(&fiber.Map{
+			"message": "id cannot be empty",
+		})
+		return nil
+	}
+
+	err := r.DB.Delete(&bookModel, id).Error 
+
+	if err != nil {
+		context.Status(http.StatusBadRequest).JSON(&fiber.Map{
+			"message": "could not delete book",
+		})
+		return err
+	}
+	context.Status(http.StatusOK).JSON(&fiber.Map{
+		"message": "books delete successfully",
+	})
 	return nil
 }
 
@@ -57,6 +83,32 @@ func (r *Repository) GetBooks(context *fiber.Ctx) error{
 	context.Status(http.StatusOK).JSON(&fiber.Map{
 		"message": "books fetched successfully",
 		"data": bookModels,
+	})
+	return nil
+}
+
+func (r *Repository) GetBookByID(context *fiber.Ctx) error {
+	id := context.Params("id")
+	bookModel := &models.Books{}
+	if id == ""{
+		context.Status(http.StatusInternalServerError).JSON(&fiber.Map{
+			"message": "id cannot be empty",
+		})
+		return nil
+	}
+
+	fmt.Println("the ID is", id)
+
+	err := r.DB.Where("id = ?", id).First(bookModel).Error
+	if err != nil {
+		context.Status(http.StatusBadRequest).JSON(
+			&fiber.Map{"message": "could not get the book"},
+		)
+		return err
+	}
+	context.Status(http.StatusOK).JSON(&fiber.Map{
+		"message":"book id fetched successfully",
+		"data": bookModel,
 	})
 	return nil
 }
@@ -87,6 +139,11 @@ func main() {
 
 	if err != nil {
 		log.Fatal("could not load the database")
+	}
+	err = models.MigrateBooks(db)
+
+	if err != nil {
+		log.Fatal("could not migrate db")
 	}
 
 	r := Repository{
