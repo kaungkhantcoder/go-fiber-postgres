@@ -23,6 +23,7 @@ type Repository struct {
 	DB *gorm.DB
 }
 
+
 func (r *Repository) CreateBook(context *fiber.Ctx) error {
 	book := Book{}
 
